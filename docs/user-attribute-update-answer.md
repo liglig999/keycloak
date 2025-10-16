@@ -44,9 +44,9 @@ With differential updates:
 ### 3. Already Optimized
 
 Keycloak includes optimizations:
-- **Early return** when values haven't changed
-- **Batch HQL** for deletions (not per-entity operations)
-- **setSingleAttribute()** reuses entities for single values
+- **Early return** when values haven't changed - Before performing any database operations, Keycloak compares the old and new attribute values using `CollectionUtil.collectionEquals()`. If they're identical, it skips the DELETE + INSERT entirely.
+- **Batch HQL** for deletions (not per-entity operations) - Uses a single HQL DELETE query instead of removing entities one by one
+- **setSingleAttribute()** reuses entities for single values - Updates the existing UserAttributeEntity in-place instead of DELETE + INSERT
 
 ## Is This a Performance Problem?
 
@@ -146,8 +146,22 @@ For the vast majority of Keycloak deployments, this approach works well. If you 
 
 **Want to measure this yourself?**
 
-1. Enable Hibernate SQL logging: `quarkus.hibernate-orm.log.sql=true`
-2. Update a user attribute via REST API
-3. Count the DELETE and INSERT statements in the logs
+Enable Hibernate SQL logging:
 
-You'll see exactly the pattern described above.
+**For Quarkus-based deployments (Keycloak 17+):**
+```
+quarkus.hibernate-orm.log.sql=true
+quarkus.hibernate-orm.log.format-sql=true
+```
+
+**For WildFly-based deployments (Keycloak < 17):**
+```xml
+<logger category="org.hibernate.SQL">
+    <level name="DEBUG"/>
+</logger>
+```
+
+Then:
+1. Update a user attribute via REST API
+2. Count the DELETE and INSERT statements in the logs
+3. You'll see exactly the pattern described above
