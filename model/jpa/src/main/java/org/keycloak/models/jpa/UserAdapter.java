@@ -195,6 +195,7 @@ public class UserAdapter implements UserModel, JpaModel<UserEntity> {
             return;
         }
 
+        // Build sets of old and new values for comparison
         Set<String> oldEntries = getAttributeStream(name).collect(Collectors.toSet());
         Set<String> newEntries;
         if (values == null) {
@@ -202,11 +203,15 @@ public class UserAdapter implements UserModel, JpaModel<UserEntity> {
         } else {
             newEntries = new HashSet<>(values);
         }
+        
+        // Early return if values haven't changed
         if (CollectionUtil.collectionEquals(oldEntries, newEntries)) {
             return;
         }
 
-        // Remove all existing
+        // Remove all existing and re-add new values
+        // Note: We use this approach to avoid potential StaleObjectStateException
+        // in concurrent scenarios (see KEYCLOAK-3296)
         removeAttribute(name);
         if (values != null) {
             for (Iterator<String> it = values.stream().filter(Objects::nonNull).iterator(); it.hasNext();) {
